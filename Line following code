@@ -1,0 +1,161 @@
+#include <MPU6050_tockn.h>
+#include <Wire.h>
+
+MPU6050 mpu6050(Wire);
+
+int steeringAngle, leftSpeed, rightSpeed, rad = 35, messageLength = 4;
+float angleZ, startAng, distance, duration;
+
+int Sensor1Value = 1300;
+int Sensor2Value = 3100;
+int Sensor3Value = 1200;     //these are the sensor threshold values
+int Sensor4Value = 1000;
+int Sensor5Value = 700;
+int Sensor6Value = 2800;
+
+#define I2C_SLAVE_ADDR 0x04
+#define TRIG_PIN 5
+#define ECHO_PIN 18
+#define Sensor1 33
+#define Sensor2 25
+#define Sensor3 26
+#define Sensor4 27
+#define Sensor5 14
+#define Sensor6 12
+
+void setup() {
+  Serial.begin(9600);
+  Wire.begin();
+  mpu6050.begin();
+  mpu6050.calcGyroOffsets(true);
+
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(Sensor1, INPUT);
+  pinMode(Sensor2, INPUT);
+  pinMode(Sensor3, INPUT);
+  pinMode(Sensor4, INPUT);
+  pinMode(Sensor5, INPUT);
+  pinMode(Sensor6, INPUT);
+
+  turnStraight();
+}
+
+
+void loop() {
+  printSensors();
+  if((analogRead(Sensor1)) < Sensor1Value)
+  {
+    turnRight();
+  }
+
+if((analogRead(Sensor2)) < Sensor2Value)
+  {
+    turnLeft();
+  }
+  if((analogRead(Sensor3)) < Sensor3Value)
+ 
+ {
+    turnRight();
+  }
+  if((analogRead(Sensor4)) < Sensor4Value)
+ 
+  {
+    turnLeft();
+  }
+
+ }
+  if((analogRead(Sensor5)) < Sensor5Value)
+ 
+  {
+    turnRight();
+  }
+
+  if((analogRead(Sensor6)) < Sensor6Value)
+  {
+    turnLeft();
+  }
+}
+
+
+void printSensors()
+{
+  Serial.print("S1: ");
+  Serial.print(analogRead(Sensor1));
+  Serial.print("\tS2: ");
+  Serial.print(analogRead(Sensor2));
+  Serial.print("\tS3: ");
+  Serial.print(analogRead(Sensor3));
+  Serial.print("\tS4: ");
+  Serial.print(analogRead(Sensor4));
+  Serial.print("\tS5: ");
+  Serial.print(analogRead(Sensor5));
+  Serial.print("\tS6: ");
+  Serial.println(analogRead(Sensor6));
+}
+void getDist() {
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  duration = pulseIn(ECHO_PIN, HIGH);
+  distance = (duration * 0.034) / 2;
+  Serial.print("Distance: ");
+  Serial.println(distance);
+}
+
+void sendData(int x, int y, int z) {
+  Wire.beginTransmission(I2C_SLAVE_ADDR);
+  Wire.write((byte)((x & 0x0000FF00) >> 8));
+  Wire.write((byte)(x & 0x000000FF));
+  Wire.write((byte)((y & 0x0000FF00) >> 8));
+  Wire.write((byte)(y & 0x000000FF));
+  Wire.write((byte)((z & 0x0000FF00) >> 8));
+  Wire.write((byte)(z & 0x000000FF));
+  Wire.endTransmission(); 
+}
+
+void getAngleZ() {
+  mpu6050.update(); //get new position of gyroscope
+  angleZ = int(mpu6050.getAngleZ()); //send integer of angle
+}
+
+void changeDirection() {
+  //change direction
+  leftSpeed = -leftSpeed;
+  rightSpeed = -rightSpeed;
+  sendData(leftSpeed, rightSpeed, steeringAngle);
+} 
+
+void stop() {
+  //stop
+  leftSpeed = 0;
+  rightSpeed = 0;
+  sendData(leftSpeed, rightSpeed, steeringAngle);
+}
+
+void turnLeft() {
+  //turn left
+  steeringAngle = 20;
+  leftSpeed = 80;
+  rightSpeed = -140;
+  sendData(leftSpeed, rightSpeed, steeringAngle);
+}
+
+void turnRight() {
+  //turn right
+  steeringAngle = 85;
+  leftSpeed = 140;
+  rightSpeed = -80;
+  sendData(leftSpeed, rightSpeed, steeringAngle);
+}
+
+void turnStraight() {
+  //turn right
+  steeringAngle = 58;
+  leftSpeed = 140;
+  rightSpeed = -140;
+  sendData(leftSpeed, rightSpeed, steeringAngle);
+}
