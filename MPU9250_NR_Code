@@ -1,0 +1,185 @@
+//****************************************//
+//* ESP32 MQTT EEEBot Template           *//
+//* Modified from Rui Santos'            *//
+//* https://randomnerdtutorials.com      *//
+//*                                      *//
+//* ESP32 Code                           *//
+//*                                      *//
+//* UoN 2022 - ND                        *//
+//****************************************//
+
+ 
+
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <Wire.h>
+
+ 
+
+// Add your required sensor/component libraries here
+// --
+#include <MPU6050_tockn.h>
+// --
+
+ 
+
+// Replace the next variables with your SSID/Password combination
+const char* ssid = "shah_13";                      //CHANGE ME
+const char* password = "bench13superiority";              //CHANGE ME     
+
+ 
+
+// Add your MQTT Broker IP address, example:
+//const char* mqtt_server = "192.168.1.144";                      
+const char* mqtt_server = "192.168.137.122";          //CHANGE ME
+
+ 
+
+MPU6050 mpu6050(Wire);
+
+ 
+
+float anglex = 0;
+float angley = 0;
+float anglez = 0;
+
+ 
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+long lastMsg = 0;
+char msg[50];
+int value = 0;
+
+ 
+
+void setup() {​​​​​
+  Serial.begin(9600);
+  Wire.begin();
+  mpu6050.begin();
+  mpu6050.calcGyroOffsets(true);
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+}​​​​​
+
+ 
+
+void setup_wifi() {​​​​​
+  delay(10);
+  // We start by connecting to a WiFi network
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+ 
+
+  WiFi.begin(ssid, password);
+
+ 
+
+  while (WiFi.status() != WL_CONNECTED) {​​​​​
+    delay(500);
+    Serial.print(".");
+  }​​​​​
+
+ 
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+}​​​​​
+
+ 
+
+void callback(char* topic, byte* message, unsigned int length) {​​​​​
+  Serial.print("Message arrived on topic: ");
+  Serial.print(topic);
+  Serial.print(". Message: ");
+  String messageTemp;
+  
+  for (int i = 0; i < length; i++) {​​​​​
+    Serial.print((char)message[i]);
+    messageTemp += (char)message[i];
+  }​​​​​
+  Serial.println();
+
+ 
+
+  // Add your subscribed topics here i.e. statements to control GPIOs with MQTT
+  // --
+  if (String(topic) == "esp32/output"){​​​​​
+    Serial.print("Changing output to ");
+    if(messageTemp == "on"){​​​​​
+      Serial.println("on");
+    }​​​​​
+    else if(messageTemp == "off"){​​​​​
+      Serial.println("off");
+    }​​​​​
+  }​​​​​
+}​​​​​
+void reconnect() {​​​​​
+  // Loop until we're reconnected
+  while (!client.connected()) {​​​​​
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect("ESP32Client")) {​​​​​
+      Serial.println("connected");
+      
+      // Add your subscribe topics here
+      // --
+      client.subscribe("esp32/output");
+      // --
+         
+    }​​​​​ else {​​​​​
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }​​​​​
+  }​​​​​
+}​​​​​
+void loop() {​​​​​
+  if (!client.connected()) {​​​​​
+    reconnect();
+  }​​​​​
+  client.loop();
+
+ 
+
+  long now = millis();
+  if (now - lastMsg > 5000) {​​​​​
+    lastMsg = now;
+    
+    // Add your own code here i.e. sensor measurements, publish topics & subscribe topics for GPIO control
+    // --
+    mpu6050.update();
+    
+    anglex = mpu6050.getAngleX();
+    angley = mpu6050.getAngleY();
+    anglez = mpu6050.getAngleZ();
+    
+    char anglexString[8];
+    dtostrf(anglex, 1, 2, anglexString);
+    client.publish("esp32/anglex",anglexString);
+    Serial.print("angleX : ");
+    Serial.println(anglex);
+   
+      
+    char angleyString[8];
+    dtostrf(angley, 1, 2, angleyString);
+    client.publish("esp32/angley",angleyString);
+    Serial.print("angleY : ");
+    Serial.println(angley);
+
+    char anglezString[8];
+    dtostrf(anglez, 1, 2, anglezString);
+    client.publish("esp32/anglez",anglezString);
+    Serial.print("angleZ : ");
+    Serial.println(anglez);
+   
+    // --
+  }
+}
